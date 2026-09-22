@@ -4,32 +4,30 @@ function log(label: string, value: unknown): void {
   console.log(`${label} -> ${JSON.stringify(value)}`);
 }
 
-console.log("=== LRUCache demo (capacity 3) ===\n");
+console.log("--- Basic LRU Test ---\n");
 
 const cache = new LRUCache<string, number>(3);
 
-console.log("-- put a=1, b=2, c=3 --");
+console.log("put a=1, b=2, c=3 (capacity 3)");
 cache.put("a", 1);
 cache.put("b", 2);
 cache.put("c", 3);
 log('get("a")', cache.get("a")); // hit, a becomes MRU. order now: c,b,a(front)
 
-console.log("\n-- put d=4 (capacity 3 exceeded, evicts LRU) --");
-console.log("order before put: a(MRU), c, b(LRU) -> b should be evicted");
+console.log("\nput d=4 -> capacity exceeded, order was a(MRU),c,b(LRU) -> evicting \"b\"");
 cache.put("d", 4);
-log('get("b")', cache.get("b")); // undefined, evicted
+log('get("b") [expect evicted]', cache.get("b")); // undefined, evicted
 log('get("a")', cache.get("a")); // still present
 log('get("c")', cache.get("c")); // still present
 log('get("d")', cache.get("d")); // still present
 
-console.log("\n-- put c=30 (update existing key, moves c to MRU) --");
+console.log("\nput c=30 (existing key update, moves c to MRU, no eviction)");
 cache.put("c", 30);
 log('get("c")', cache.get("c")); // 30
 
-console.log("\n-- put e=5 (evicts current LRU) --");
-console.log("order before put: c(MRU), d, a(LRU) -> a should be evicted");
+console.log("\nput e=5 -> capacity exceeded, order was c(MRU),d,a(LRU) -> evicting \"a\"");
 cache.put("e", 5);
-log('get("a")', cache.get("a")); // undefined, evicted
+log('get("a") [expect evicted]', cache.get("a")); // undefined, evicted
 log('get("e")', cache.get("e")); // 5
 
 console.log(`\nfinal size -> ${cache.size}`);
@@ -39,22 +37,22 @@ function sleep(ms: number): Promise<void> {
 }
 
 async function ttlDemo(): Promise<void> {
-  console.log("\n=== TTL demo ===\n");
+  console.log("\n--- TTL Expiry Test ---\n");
   const ttlCache = new LRUCache<string, string>(3);
 
-  console.log('-- put "session" with ttl=50ms --');
+  console.log('put "session"="token-abc" with ttl=50ms');
   ttlCache.put("session", "token-abc", 50);
-  log('get("session") immediately', ttlCache.get("session")); // still valid
+  log('get("session") immediately [expect hit]', ttlCache.get("session"));
 
-  console.log("\n-- wait 80ms (past the 50ms ttl) --");
+  console.log("\nwaiting 80ms (past the 50ms ttl)...");
   await sleep(80);
-  log('get("session") after expiry', ttlCache.get("session")); // undefined, expired + evicted
-  console.log(`size after expired get -> ${ttlCache.size}`); // evicted on access, so 0
+  log('get("session") after expiry [expect -1/undefined, treated as evicted]', ttlCache.get("session"));
+  console.log(`size after expired get -> ${ttlCache.size} (lazily evicted on access)`);
 
-  console.log('\n-- put "config" with no ttl (never expires) --');
+  console.log('\nput "config"="prod" with no ttl (never expires)');
   ttlCache.put("config", "prod");
   await sleep(80);
-  log('get("config") after same wait', ttlCache.get("config")); // still present, no ttl
+  log('get("config") after same 80ms wait [expect still hit, no ttl set]', ttlCache.get("config"));
 }
 
 ttlDemo();
