@@ -33,3 +33,28 @@ log('get("a")', cache.get("a")); // undefined, evicted
 log('get("e")', cache.get("e")); // 5
 
 console.log(`\nfinal size -> ${cache.size}`);
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function ttlDemo(): Promise<void> {
+  console.log("\n=== TTL demo ===\n");
+  const ttlCache = new LRUCache<string, string>(3);
+
+  console.log('-- put "session" with ttl=50ms --');
+  ttlCache.put("session", "token-abc", 50);
+  log('get("session") immediately', ttlCache.get("session")); // still valid
+
+  console.log("\n-- wait 80ms (past the 50ms ttl) --");
+  await sleep(80);
+  log('get("session") after expiry', ttlCache.get("session")); // undefined, expired + evicted
+  console.log(`size after expired get -> ${ttlCache.size}`); // evicted on access, so 0
+
+  console.log('\n-- put "config" with no ttl (never expires) --');
+  ttlCache.put("config", "prod");
+  await sleep(80);
+  log('get("config") after same wait', ttlCache.get("config")); // still present, no ttl
+}
+
+ttlDemo();

@@ -1,12 +1,14 @@
 class Node<K, V> {
   key: K;
   value: V;
+  expiresAt: number | undefined; // ms epoch; undefined = no TTL
   prev: Node<K, V> | null = null;
   next: Node<K, V> | null = null;
 
-  constructor(key: K, value: V) {
+  constructor(key: K, value: V, expiresAt?: number) {
     this.key = key;
     this.value = value;
+    this.expiresAt = expiresAt;
   }
 }
 
@@ -30,19 +32,27 @@ export class LRUCache<K, V> {
   get(key: K): V | undefined {
     const node = this.map.get(key);
     if (!node) return undefined;
+    if (node.expiresAt !== undefined && Date.now() >= node.expiresAt) {
+      this.remove(node);
+      this.map.delete(key);
+      return undefined;
+    }
     this.moveToFront(node);
     return node.value;
   }
 
-  put(key: K, value: V): void {
+  /** ttlMs is optional; omit for a key that never expires. */
+  put(key: K, value: V, ttlMs?: number): void {
+    const expiresAt = ttlMs !== undefined ? Date.now() + ttlMs : undefined;
     const existing = this.map.get(key);
     if (existing) {
       existing.value = value;
+      existing.expiresAt = expiresAt;
       this.moveToFront(existing);
       return;
     }
 
-    const node = new Node(key, value);
+    const node = new Node(key, value, expiresAt);
     this.map.set(key, node);
     this.addToFront(node);
 

@@ -24,6 +24,16 @@ Every operation that touches a key moves it to the head. The tail is always
 whatever hasn't been touched the longest, so eviction is just "drop the
 tail."
 
+## TTL (optional expiration)
+
+`put(key, value, ttlMs?)` takes an optional TTL in ms. Node stores `expiresAt = Date.now() + ttlMs` (or `undefined` if omitted — never expires).
+
+Expiration is **lazy**: checked only inside `get()`. If `Date.now() >= expiresAt`, the key is treated as a miss (`undefined`), removed from the Map and unlinked from the list right there — same eviction path `put` uses for LRU overflow.
+
+Trade-offs:
+- **Lazy vs active** — lazy costs nothing until you touch the key (no timers/background sweep), but an expired-and-untouched key still occupies a capacity slot until someone `get`s it (or LRU pressure evicts it naturally from the tail). An active approach (setTimeout per key, or a periodic sweep) reclaims space immediately but adds timer bookkeeping and cleanup-on-delete complexity. Lazy fits the O(1)/no-deps scope here.
+- No TTL set → `expiresAt` stays `undefined`, skips the check entirely, zero effect on plain LRU behavior/complexity.
+
 ## Complexity
 
 | Operation | Time | Space |
@@ -36,7 +46,7 @@ tail."
 
 ```bash
 npm install
-npm run demo    # builds + runs src/demo.ts, logs put/get/eviction proof
+npm run demo    # builds + runs src/demo.ts, logs put/get/eviction + TTL expiry proof
 ```
 
 Or just build:
